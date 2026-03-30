@@ -1,0 +1,139 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "d64b6786",
+   "metadata": {},
+   "source": [
+    "# Purpose of the script\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b47478b2",
+   "metadata": {},
+   "source": [
+    "This code reads activity data from an Excel file, cleans and structures the Work Breakdown Structure (WBS) into hierarchical levels, and then writes the updated data back into the same Excel sheet."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "24c31dab",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import openpyxl\n",
+    "\n",
+    "# --- Paths & sheet names ---\n",
+    "file_path = r'C:\\Users\\efloresmendoza\\John Holland Group\\ARTC Illabo - Stockinbingal (Inland Rail I2S) - Cost Control\\Earned Value Reporting (Control Pro)\\11. November 2025\\P6 Update'\n",
+    "file_name = 'Actual.xlsx'\n",
+    "sheet_source = 'Actual'         # source sheet to read\n",
+    "sheet_target = 'Activities'   # target sheet to write (was 'sheet_mapping')\n",
+    "\n",
+    "# --- Load source sheet into DataFrame ---\n",
+    "df_00 = pd.read_excel(fr'{file_path}\\{file_name}', sheet_name=sheet_source, engine='openpyxl')\n",
+    "\n",
+    "# --- Clean WBS column ---\n",
+    "# Use strip to remove both leading and trailing whitespace\n",
+    "df_00['WBS clean'] = df_00['WBS'].astype(str).str.strip()\n",
+    "\n",
+    "# --- Initialize WBS level columns ---\n",
+    "for i in range(1, 11):\n",
+    "    col = f'WBS level {i}'\n",
+    "    if col not in df_00.columns:\n",
+    "        df_00[col] = \"\"\n",
+    "\n",
+    "# --- Populate WBS level columns based on Wbs Level ---\n",
+    "wbs_levels = {}  # latest WBS name by level\n",
+    "\n",
+    "# Safely handle missing or non-integer 'Wbs Level'\n",
+    "def safe_level(x):\n",
+    "    try:\n",
+    "        # Some exports have levels as floats; e.g., 3.0 -> 3\n",
+    "        return int(float(x))\n",
+    "    except (ValueError, TypeError):\n",
+    "        return np.nan\n",
+    "\n",
+    "df_00['Wbs Level (int)'] = df_00['Wbs Level'].apply(safe_level)\n",
+    "\n",
+    "for idx, row in df_00.iterrows():\n",
+    "    level = row['Wbs Level (int)']\n",
+    "    if np.isnan(level):\n",
+    "        # skip updating levels if missing\n",
+    "        continue\n",
+    "    level = int(level)\n",
+    "    wbs_levels[level] = row['WBS clean']\n",
+    "    for i in range(1, level + 1):\n",
+    "        df_00.at[idx, f'WBS level {i}'] = wbs_levels.get(i, \"\")\n",
+    "\n",
+    "# --- Prepare data for writing ---\n",
+    "# Replace NaN with None for openpyxl compatibility\n",
+    "df_00 = df_00.replace({np.nan: None})\n",
+    "data = [df_00.columns.tolist()] + df_00.values.tolist()\n",
+    "\n",
+    "# --- Write to target sheet in the same workbook ---\n",
+    "full_path = fr'{file_path}\\{file_name}'\n",
+    "wb = openpyxl.load_workbook(full_path)\n",
+    "\n",
+    "# Create the target sheet if it doesn't exist\n",
+    "if sheet_target in wb.sheetnames:\n",
+    "    ws = wb[sheet_target]\n",
+    "    # Optional: Clear existing content\n",
+    "    ws.delete_rows(1, ws.max_row)\n",
+    "else:\n",
+    "    ws = wb.create_sheet(sheet_target)\n",
+    "\n",
+    "# Write header on row 1, data from row 2\n",
+    "for j, value in enumerate(data[0], start=1):\n",
+    "    ws.cell(row=1, column=j, value=value)\n",
+    "\n",
+    "for i, row_vals in enumerate(data[1:], start=2):\n",
+    "    for j, value in enumerate(row_vals, start=1):\n",
+    "        ws.cell(row=i, column=j, value=value)\n",
+    "\n",
+    "wb.save(full_path)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "12a7a8ec",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a1ec8a01",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "base",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.4"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
